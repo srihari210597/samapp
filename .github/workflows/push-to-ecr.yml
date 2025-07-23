@@ -1,14 +1,14 @@
-name: CI - Build and Push to ECR
+name: CI/CD - Build, Push to ECR & Deploy to ECS
 
 on:
   push:
     branches:
-      - main  # Trigger pipeline on push to main
+      - main
 
 jobs:
-  build-and-push:
-    name: Build Docker Image & Push to ECR
+  build-deploy:
     runs-on: [self-hosted, linux]
+    name: Build Docker Image & Deploy to ECS
 
     steps:
     - name: 🧾 Checkout source code
@@ -22,17 +22,50 @@ jobs:
         aws-region: ap-south-1
 
     - name: 🔓 Login to Amazon ECR
-      id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: 🐳 Build Docker image
       run: |
         docker build -t samapp .
 
-    - name:   Tag Docker image with ECR URI
+    - name: 🏷️ Tag Docker image
       run: |
         docker tag samapp:latest 088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest
 
     - name: 🚀 Push Docker image to ECR
       run: |
         docker push 088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest
+
+    - name: 🧾 Generate ECS Task Definition JSON
+      run: |
+        cat > ecs-task-def.json <<EOF
+        {
+          "family": "samapp-task",
+          "networkMode": "awsvpc",
+          "executionRoleArn": "arn:aws:iam::088777336307:role/ecsTaskExecutionRole",
+          "requiresCompatibilities": ["FARGATE"],
+          "cpu": "256",
+          "memory": "512",
+          "containerDefinitions": [
+            {
+              "name": "samapp",
+              "image": "088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest",
+              "essential": true,
+              "portMappings": [
+                {
+                  "containerPort": 80,
+                  "protocol": "tcp"
+                }
+              ]
+            }
+          ]
+        }
+        EOF
+
+    - name: 📦 Deploy to Amazon ECS
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ecs-task-def.json
+        service: sam-app-svc
+        cluster: sam-app
+        wait-for-service-stability: true
