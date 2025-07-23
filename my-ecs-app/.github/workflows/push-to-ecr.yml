@@ -1,0 +1,38 @@
+name: CI - Build and Push to ECR
+
+on:
+  push:
+    branches:
+      - main  # Trigger pipeline on push to main
+
+jobs:
+  build-and-push:
+    name: Build Docker Image & Push to ECR
+    runs-on: [self-hosted, linux]
+
+    steps:
+    - name: 🧾 Checkout source code
+      uses: actions/checkout@v3
+
+    - name: 🔐 Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
+
+    - name: 🔓 Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: 🐳 Build Docker image
+      run: |
+        docker build -t samapp .
+
+    - name: 🏷️ Tag Docker image with ECR URI
+      run: |
+        docker tag samapp:latest 088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest
+
+    - name: 🚀 Push Docker image to ECR
+      run: |
+        docker push 088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest
