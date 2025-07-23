@@ -48,7 +48,7 @@ jobs:
           "memory": "512",
           "containerDefinitions": [
             {
-              "name": "samapp",
+              "name": "sam-app-py",
               "image": "088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest",
               "essential": true,
               "portMappings": [
