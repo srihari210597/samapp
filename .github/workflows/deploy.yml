@@ -5,38 +5,62 @@ on:
     branches:
       - main
 
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: 088777336307.dkr.ecr.ap-south-1.amazonaws.com
+  ECR_REPO: samapp
+  CLUSTER_NAME: sam-app
+  SERVICE_NAME: sam-app-svc
+  CONTAINER_NAME: sam-app-py
+
 jobs:
-  build-deploy:
+  ci:
+    name: Build & Push Docker Image
     runs-on: [self-hosted, linux]
-    name: Build Docker Image & Deploy to ECS
 
     steps:
     - name: 🧾 Checkout source code
       uses: actions/checkout@v3
+
+    - name: 🧮 Set Image Tag from Git SHA
+      run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
     - name: 🔐 Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v3
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ap-south-1
+        aws-region: ${{ env.AWS_REGION }}
 
     - name: 🔓 Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: 🐳 Build Docker image
       run: |
-        docker build -t samapp .
+        docker build -t $ECR_REPO .
 
-    - name: 🏷️ Tag Docker image
+    - name: 🏷️ Tag Docker image with SHA
       run: |
-        docker tag samapp:latest 088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest
+        docker tag $ECR_REPO:latest $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
 
     - name: 🚀 Push Docker image to ECR
       run: |
-        docker push 088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest
+        docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
 
-    - name: 🧾 Generate ECS Task Definition JSON
+  cd:
+    name: Deploy to ECS
+    runs-on: [self-hosted, linux]
+    needs: ci
+
+    steps:
+    - name: 🔐 Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: 🧾 Recreate ECS Task Definition with Image Tag
       run: |
         cat > ecs-task-def.json <<EOF
         {
@@ -48,8 +72,8 @@ jobs:
           "memory": "512",
           "containerDefinitions": [
             {
-              "name": "sam-app-py",
-              "image": "088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:latest",
+              "name": "${{ env.CONTAINER_NAME }}",
+              "image": "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}",
               "essential": true,
               "portMappings": [
                 {
@@ -66,6 +90,6 @@ jobs:
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ecs-task-def.json
-        service: sam-app-svc
-        cluster: sam-app
+        service: ${{ env.SERVICE_NAME }}
+        cluster: ${{ env.CLUSTER_NAME }}
         wait-for-service-stability: true
