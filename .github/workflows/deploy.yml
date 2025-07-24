@@ -70,7 +70,7 @@ jobs:
       id: render-task
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
-        task-definition: samapp-task.json  # ✅ Must exist in the repo
+        task-definition: ecs-task-def.json  # ✅ Must exist in the repo
         container-name: ${{ env.CONTAINER_NAME }}
         image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
 
