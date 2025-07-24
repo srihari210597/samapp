@@ -3,16 +3,16 @@ name: CI/CD - Build, Push to ECR & Deploy to ECS
 on:
   push:
     branches:
-      - main
+      - main  # ✅ Change branch name if your repo uses a different deployment branch
 
 env:
-  AWS_REGION: ap-south-1
-  ECR_REGISTRY: 088777336307.dkr.ecr.ap-south-1.amazonaws.com
-  ECR_REPO: samapp
-  CLUSTER_NAME: sam-app
-  SERVICE_NAME: sam-app-svc
-  TASK_FAMILY: samapp-task
-  CONTAINER_NAME: sam-app-py
+  AWS_REGION: ap-south-1  # ✅ Change if customer is hosted in a different region
+  ECR_REGISTRY: 088777336307.dkr.ecr.ap-south-1.amazonaws.com  # ✅ Change to customer’s ECR account ID and region
+  ECR_REPO: samapp  # ✅ Change to the customer's actual ECR repository name
+  CLUSTER_NAME: sam-app  # ✅ Change to the customer's ECS Cluster name
+  SERVICE_NAME: sam-app-svc  # ✅ Change to the ECS Service name
+  TASK_FAMILY: samapp-task  # ✅ Change to the ECS Task Definition family name
+  CONTAINER_NAME: sam-app-py  # ✅ Change to the container name inside the ECS task
 
 jobs:
   ci:
@@ -32,9 +32,8 @@ jobs:
     - name: 🔐 Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v3
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # ✅ Add this per customer repo under Settings → Secrets
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
 
     - name: 🔓 Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
@@ -70,7 +69,7 @@ jobs:
       id: render-task
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
-        task-definition: samapp-task.json
+        task-definition: samapp-task.json  # ✅ Create a new task def file per customer (or rename as needed)
         container-name: ${{ env.CONTAINER_NAME }}
         image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
 
