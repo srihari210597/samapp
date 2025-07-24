@@ -1,21 +1,21 @@
 {
-  "family": "my-ecs-task",
+  "family": "samapp-task",
   "networkMode": "awsvpc",
+  "executionRoleArn": "arn:aws:iam::088777336307:role/ecsTaskExecutionRole",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
   "memory": "512",
   "containerDefinitions": [
     {
-      "name": "my-app",
-      "image": "088777336307.dkr.ecr.ap-south-1.amazonaws.com/samapp:${IMAGE_TAG}",
+      "name": "sam-app-py",
+      "image": "DYNAMICALLY_REPLACED",
+      "essential": true,
       "portMappings": [
         {
           "containerPort": 80,
-          "hostPort": 80,
           "protocol": "tcp"
         }
-      ],
-      "essential": true
+      ]
     }
   ]
 }

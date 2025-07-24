@@ -66,18 +66,18 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: 📦 Update ECS Task Definition Image
-      id: update-task-def
-      uses: aws-actions/amazon-ecs-update-task-definition@v1
+    - name: 🧾 Render ECS Task Definition with new image
+      id: render-task
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
-        task-definition: ${{ env.TASK_FAMILY }}
+        task-definition: samapp-task.json
         container-name: ${{ env.CONTAINER_NAME }}
         image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
 
     - name: 🚀 Deploy to Amazon ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
-        task-definition: ${{ steps.update-task-def.outputs.task-definition }}
+        task-definition: ${{ steps.render-task.outputs.task-definition }}
         service: ${{ env.SERVICE_NAME }}
         cluster: ${{ env.CLUSTER_NAME }}
         wait-for-service-stability: true
