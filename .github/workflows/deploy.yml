@@ -11,6 +11,7 @@ env:
   ECR_REPO: samapp
   CLUSTER_NAME: sam-app
   SERVICE_NAME: sam-app-svc
+  TASK_FAMILY: samapp-task
   CONTAINER_NAME: sam-app-py
 
 jobs:
@@ -26,7 +27,7 @@ jobs:
 
     - name: 🧮 Set Image Tag from Git SHA
       id: set-tag
-      run: echo "image_tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+      run: echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
     - name: 🔐 Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v3
@@ -65,36 +66,18 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: 🧾 Recreate ECS Task Definition with Image Tag
-      run: |
-        cat > ecs-task-def.json <<EOF
-        {
-          "family": "samapp-task",
-          "networkMode": "awsvpc",
-          "executionRoleArn": "arn:aws:iam::088777336307:role/ecsTaskExecutionRole",
-          "requiresCompatibilities": ["FARGATE"],
-          "cpu": "256",
-          "memory": "512",
-          "containerDefinitions": [
-            {
-              "name": "${{ env.CONTAINER_NAME }}",
-              "image": "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}",
-              "essential": true,
-              "portMappings": [
-                {
-                  "containerPort": 80,
-                  "protocol": "tcp"
-                }
-              ]
-            }
-          ]
-        }
-        EOF
+    - name: 📦 Update ECS Task Definition Image
+      id: update-task-def
+      uses: aws-actions/amazon-ecs-update-task-definition@v1
+      with:
+        task-definition: ${{ env.TASK_FAMILY }}
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
 
-    - name: 📦 Deploy to Amazon ECS
+    - name: 🚀 Deploy to Amazon ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
-        task-definition: ecs-task-def.json
+        task-definition: ${{ steps.update-task-def.outputs.task-definition }}
         service: ${{ env.SERVICE_NAME }}
         cluster: ${{ env.CLUSTER_NAME }}
         wait-for-service-stability: true
